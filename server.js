@@ -1,32 +1,68 @@
-// DEPENDENCIES
-// Series of npm packages that we will use to give our server useful functionality
-
+//Dependencies
 const express = require('express');
+const path = require('path');
 
-// EXPRESS CONFIGURATION
-// This sets up the basic properties for our express server
-
-// Tells node that we are creating an "express" server
 const app = express();
+const PORT = process.env.PORT || 8080;
 
-// Sets an initial port. We"ll use this later in our listener
-const PORT = process.env.PORT || 8081;
-
-// Sets up the Express app to handle data parsing
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.static("public"));
 
-// ROUTER
-// The below points our server to a series of "route" files.
-// These routes give our server a "map" of how to respond when users visit or request data from various URLs.
+const fs = require('fs');
 
-// require('./routes/apiRoutes')(app);
-// require('./public/index.html')(app);
-require('./routes/htmlRoutes')(app);
+//GET routes
+app.get('/notes', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/notes.html'));
+});
 
-// LISTENER
-// The below code effectively "starts" our server
+app.get('/api/notes', (req, res) => {
+	res.sendFile(path.join(__dirname, 'db/db.json'));
+});
 
+app.get('/api/notes/:id', (req, res) => {
+	let savedNotes = JSON.parse(fs.readFileSync('db/db.json', 'utf8'));
+	res.json(savedNotes[Number(req.params.id)]);
+});
+
+app.get('*', function(req, res) {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+
+//POST routes
+app.post('/api/notes', (req, res) => {
+	let savedNotes = JSON.parse(fs.readFileSync('db/db.json', 'utf8'));
+	let newNote = req.body;
+	let noteId = (savedNotes.length).toString();
+
+	newNote.id = noteId;
+	savedNotes.push(newNote);
+
+	fs.writeFileSync('db/db.json', JSON.stringify(savedNotes));
+	res.json(savedNotes);
+});
+
+//DELETE routes
+app.delete('/api/notes/:id', (req, res) => {
+	let savedNotes = JSON.parse(fs.readFileSync('db/db.json', 'utf8'));
+	let noteId = req.params.id;
+	let newId = 0;
+
+	savedNotes = savedNotes.filter(note => {
+		return note.id != noteId;
+	});
+
+	for (note of savedNotes) {
+		note.id = newId.toString();
+		newId++;
+	}
+
+	fs.writeFileSync('db/db.json', JSON.stringify(savedNotes));
+	res.json(savedNotes);
+});
+
+//LISTENER
+//The below code effectively "starts" our server
 app.listen(PORT, () => {
-  console.log(`App listening on PORT: ${PORT}`);
+  console.log('App listening on PORT ' + PORT);
 });
